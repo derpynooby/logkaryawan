@@ -257,7 +257,12 @@ function nav(array $user, string $page_title): void {
 <aside class="sidebar" id="sidebar">
   <div class="sb-blob"></div><div class="sb-blob2"></div><div class="sb-blob3"></div>
   <div class="sb-brand">
-    <div class="logo">📋 Log Karyawan</div>
+    <div class="logo">
+      <img src="<?= $base ?>/assets/logo.webp" alt="Logo" style="width:3em;height:3em;vertical-align:middle;display:inline-block;border-radius:.32em;background:#fff4e6;margin-right:.1em;">
+      <span style="font-size:1.25em;font-weight:800;line-height:1.05;display:inline-block;">
+        Log<br>Karyawan
+      </span>
+    </div>
     <div class="tagline">Manajemen Aktivitas Harian</div>
   </div>
   <div class="sb-section">Menu Utama</div>
