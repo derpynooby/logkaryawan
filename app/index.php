@@ -1,5 +1,15 @@
 <?php
+// FIX: session hardening sebelum session_start() (cookie flags)
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'domain'   => '',
+    'secure'   => true,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
+
 if (!empty($_SESSION['user'])) {
     $r    = $_SESSION['user']['role'];
     $dest = match($r){
@@ -12,25 +22,47 @@ if (!empty($_SESSION['user'])) {
 }
 require __DIR__.'/shared/config.php';
 
+// FIX: Rate limiting — max 5 percobaan login per 5 menit
+$now    = time();
+$window = 300;
+$max    = 5;
+if (!isset($_SESSION['login_window_start']) || ($now - $_SESSION['login_window_start']) > $window) {
+    $_SESSION['login_window_start'] = $now;
+    $_SESSION['login_attempts']     = 0;
+}
+$throttled = $_SESSION['login_attempts'] >= $max;
+$remaining = max(0, $window - ($now - $_SESSION['login_window_start']));
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD']==='POST') {
-    $id = trim($_POST['id']??'');
-    $pass  = $_POST['password']??'';
-    $s = $db->prepare('SELECT * FROM users WHERE id=?');
-    $s->execute([$id]); $u = $s->fetch();
-    if ($u && password_verify($pass, $u['password'])) {
-        session_regenerate_id(true); // SEC-05: prevent session fixation
-        $_SESSION['user'] = ['id'=>$u['id'],'name'=>$u['name'],'email'=>$u['email'],'role'=>$u['role']];
-        $_SESSION['csrf'] = bin2hex(random_bytes(32)); // generate once, reuse across all forms
-        $dest = match($u['role']){
-            'karyawan' => 'karyawan',
-            'pic' => 'pic',
-            'admin' => 'admin',
-            default => 'direktur'
-        };
-        header("Location: $dest/dashboard.php"); exit;
+    if ($throttled) {
+        $error = 'Terlalu banyak percobaan login. Coba lagi dalam ' . ceil($remaining / 60) . ' menit.';
+    } else {
+        $id   = trim($_POST['id']??'');
+        $pass = $_POST['password']??'';
+        $s = $db->prepare('SELECT * FROM users WHERE id=?');
+        $s->execute([$id]); $u = $s->fetch();
+        if ($u && password_verify($pass, $u['password'])) {
+            session_regenerate_id(true); // SEC-05: prevent session fixation
+            // Reset attempt counter setelah login berhasil
+            unset($_SESSION['login_attempts'], $_SESSION['login_window_start']);
+            $_SESSION['user'] = ['id'=>$u['id'],'name'=>$u['name'],'email'=>$u['email'],'role'=>$u['role']];
+            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+            $dest = match($u['role']){
+                'karyawan' => 'karyawan',
+                'pic' => 'pic',
+                'admin' => 'admin',
+                default => 'direktur'
+            };
+            header("Location: $dest/dashboard.php"); exit;
+        }
+        // Catat percobaan gagal
+        $_SESSION['login_attempts']++;
+        $error = 'id atau kata sandi salah.';
+        if ($_SESSION['login_attempts'] >= $max) {
+            $error = 'Terlalu banyak percobaan gagal. Akun dikunci selama 5 menit.';
+        }
     }
-    $error = 'id atau kata sandi salah.';
 }
 ?>
 <!DOCTYPE html>
@@ -45,10 +77,8 @@ body{font-family:system-ui,sans-serif;min-height:100vh;display:flex;background:#
   width:400px;flex-shrink:0;
   background:#f29221;
   position:relative;overflow:hidden;
-  display:flex;flex-direction:column;align-items:center; /* center content horizontally */
-  padding:3rem 2.5rem;
+  display:flex;flex-direction:column;justify-content:center;padding:3rem 2.5rem;
 }
-/* bubble circles — gunakan warna penuh, tanpa gradasi, gunakan opacity random */
 .panel-l::before{content:'';position:absolute;width:360px;height:360px;border-radius:50%;
   background:#fffbe9;
   opacity:0.22;
@@ -69,71 +99,10 @@ body{font-family:system-ui,sans-serif;min-height:100vh;display:flex;background:#
   background:#ffd699;
   opacity:0.41;
   top:70%;left:40px;}
-/* LOGO BESAR sendiri di sidebar, margin-top sama dengan margin-bawah (Ke teks di bawah) */
-.panel-l .logo-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 2.5rem;
-  margin-bottom: 2.5rem;
-}
-.brand-logo {
-  display: block;
-  width: 106px;
-  height: 106px;
-  z-index: 1;
-  position: relative;
-  background: #fff;
-  border-radius: 24px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04);
-  padding: 3px;
-  object-fit: contain;
-  border: 1.5px solid #f0dfc8;
-}
-@media (max-width:900px){
-  .panel-l{width:100%;min-height:auto;padding:2rem 1.5rem}
-  .brand-appname{font-size:2.25rem}
-  .brand-logo{width:78px;height:78px;padding:7px;}
-  .logo-container{margin-top:1.4rem;margin-bottom:1.4rem;}
-  .brand-sub{margin-bottom:1.25rem;font-size:.88rem;}
-  .tagline{font-size:.89rem}
-}
-@media(max-width:480px){
-  .panel-l{padding:1.5rem 1.25rem}
-  .brand-appname{font-size:1.35rem}
-  .brand-logo{width:48px;height:48px;padding:2px;}
-  .box h1{font-size:1.25rem}
-  .hint{font-size:.72rem}
-}
-.panel-l .ct{
-  position:relative;
-  z-index:1;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-.brand-appname {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: .1rem;
-  letter-spacing: 0.01em;
-  line-height: 1.08;
-  text-align:center;
-}
-.brand-sub{
-  font-size:.96rem;
-  color:rgba(255,255,255,.68);
-  margin-bottom:2.5rem;
-  text-align:center;
-}
-.tagline{
-  color:rgba(255,255,255,.85);
-  font-size:.97rem;
-  line-height:1.65;
-  text-align:center;
-}
+.panel-l .ct{position:relative;z-index:1}
+.brand{font-size:1.9rem;font-weight:800;color:#fff;margin-bottom:.3rem}
+.brand-sub{font-size:.88rem;color:rgba(255,255,255,.65);margin-bottom:2.5rem}
+.tagline{color:rgba(255,255,255,.85);font-size:.95rem;line-height:1.65}
 .panel-r{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .box{width:100%;max-width:360px}
 h1{font-size:1.45rem;font-weight:800;color:#1c1309;margin-bottom:.3rem}
@@ -144,26 +113,39 @@ label{display:block;font-size:.73rem;font-weight:700;text-transform:uppercase;
 input{width:100%;padding:.6rem .85rem;border:1.5px solid #f0dfc8;
   border-radius:.5rem;font-size:.9rem;background:#fff;color:#1c1309;transition:border .15s}
 input:focus{outline:none;border-color:#f29221}
+input:disabled{opacity:.5;cursor:not-allowed}
 .btn{width:100%;padding:.7rem;border:none;border-radius:.5rem;
   background:linear-gradient(135deg,#d97a0f 0%,#f29221 100%);
   color:#fff;font-size:.95rem;font-weight:700;
   cursor:pointer;margin-top:.25rem;transition:opacity .15s}
 .btn:hover{opacity:.88}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
   padding:.65rem .85rem;border-radius:.5rem;font-size:.85rem;margin-bottom:1rem}
 .hint{font-size:.77rem;color:#a0917e;margin-top:1.5rem;
   padding-top:1.25rem;border-top:1px solid #f0dfc8;line-height:1.8}
 .hint code{background:#fff4e6;padding:.1rem .3rem;border-radius:.25rem;font-size:.73rem}
+@media(max-width:900px){
+  body{flex-direction:column}
+  .panel-l{width:100%;min-height:auto;padding:2rem 1.5rem}
+  .brand{font-size:1.5rem}
+  .brand-sub{margin-bottom:1.25rem}
+  .tagline{font-size:.88rem}
+  .panel-r{padding:1.5rem 1rem;align-items:flex-start}
+}
+@media(max-width:480px){
+  .panel-l{padding:1.5rem 1.25rem}
+  .brand{font-size:1.3rem}
+  .box h1{font-size:1.25rem}
+  .hint{font-size:.72rem}
+}
 </style>
 </head>
 <body>
 <div class="panel-l">
   <div class="blob"></div><div class="blob2"></div><div class="blob3"></div>
-  <div class="logo-container">
-    <img src="assets/logo.webp" alt="Logo Log Karyawan" class="brand-logo">
-  </div>
   <div class="ct">
-    <div class="brand-appname">Log Karyawan</div>
+    <div class="brand">📋 Log Karyawan</div>
     <div class="brand-sub">Sistem Manajemen Aktivitas Harian</div>
     <div class="tagline">Pantau produktivitas, validasi logbook, dan kelola tim Anda secara terstruktur.</div>
   </div>
@@ -175,10 +157,10 @@ input:focus{outline:none;border-color:#f29221}
     <?php if ($error): ?><div class="err"><?= htmlspecialchars($error) ?></div><?php endif ?>
     <form method="post">
       <div class="field"><label>Id Anda</label>
-        <input type="id" name="id" required autofocus placeholder="nama@perusahaan.com"></div>
+        <input type="text" name="id" required autofocus placeholder="ID karyawan" <?= $throttled ? 'disabled' : '' ?>></div>
       <div class="field"><label>Kata Sandi</label>
-        <input type="password" name="password" required placeholder="••••••••"></div>
-      <button class="btn" type="submit">Masuk →</button>
+        <input type="password" name="password" required placeholder="••••••••" <?= $throttled ? 'disabled' : '' ?>></div>
+      <button class="btn" type="submit" <?= $throttled ? 'disabled' : '' ?>>Masuk →</button>
     </form>
     <?php if (($_ENV['APP_ENV'] ?? 'production') === 'development'): ?>
     <div class="hint">

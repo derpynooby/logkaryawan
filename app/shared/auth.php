@@ -1,5 +1,16 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    // FIX: Hardening session cookie — Secure, HttpOnly, SameSite=Lax
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => true,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 
 function require_login(): array {
     if (empty($_SESSION['user'])) { header('Location: ../index.php'); exit; }
@@ -39,7 +50,6 @@ function csrf_verify(): void {
     $post_token    = $_POST['_csrf'] ?? '';
 
     if ($session_token === '' || $post_token === '' || !hash_equals($session_token, $post_token)) {
-        // Redirect to dedicated error page (419 = session expired / token mismatch)
         $depth = str_repeat('../', substr_count($_SERVER['SCRIPT_NAME'], '/') - 2);
         header('Location: ' . $depth . 'error.php?code=419');
         exit;
@@ -50,4 +60,29 @@ function csrf_verify(): void {
 function safe_redirect(string $raw, array $allowed = ['dashboard.php', 'logbook.php', 'profile.php']): string {
     $path = basename(parse_url($raw, PHP_URL_PATH) ?? '');
     return in_array($path, $allowed, true) ? $path : 'dashboard.php';
+}
+
+// ── Login rate limiting ───────────────────────────────────────────
+// FIX: Brute force protection — max 5 attempts per 5 menit
+function login_check_throttle(): bool {
+    $now      = time();
+    $window   = 300; // 5 menit
+    $max      = 5;
+    $key      = 'login_attempts';
+    $ts_key   = 'login_window_start';
+
+    if (!isset($_SESSION[$ts_key]) || ($now - $_SESSION[$ts_key]) > $window) {
+        $_SESSION[$ts_key] = $now;
+        $_SESSION[$key]    = 0;
+    }
+
+    return $_SESSION[$key] >= $max;
+}
+
+function login_record_attempt(): void {
+    $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
+}
+
+function login_reset_attempts(): void {
+    unset($_SESSION['login_attempts'], $_SESSION['login_window_start']);
 }

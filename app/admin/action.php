@@ -5,64 +5,106 @@ require '../shared/config.php';
 $user = require_role('admin');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: dashboard.php'); exit; }
 
-csrf_verify(); // SEC-04 — after session guaranteed active
-
+csrf_verify();
 
 function back(string $to, string $type, string $msg): never {
     set_flash($type, $msg); header("Location: $to"); exit;
 }
 
+// Role yang boleh dikelola admin (semua kecuali dirinya sendiri)
+// FIX: Admin kini bisa CRUD semua role, bukan hanya karyawan
+$MANAGEABLE_ROLES = ['karyawan', 'pic', 'direktur', 'admin'];
+
 $action = $_POST['action'] ?? '';
 
-// ── Karyawan CRUD ────────────────────────────────────────────────
-if ($action === 'create_karyawan') {
+// ── User CRUD ─────────────────────────────────────────────────────
+if ($action === 'create_user') {
     $name     = trim($_POST['name'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    if (!$name || !$email || !$password) back('karyawan.php', 'error', 'Nama, email, dan password wajib diisi.');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) back('karyawan.php', 'error', 'Format email tidak valid.');
-    if (strlen($password) < 8) back('karyawan.php', 'error', 'Password minimal 8 karakter.'); // SEC-07
+    $role     = $_POST['role'] ?? '';
+
+    if (!$name || !$email || !$password || !$role)
+        back('karyawan.php', 'error', 'Semua field wajib diisi.');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+        back('karyawan.php', 'error', 'Format email tidak valid.');
+    if (strlen($password) < 8)
+        back('karyawan.php', 'error', 'Password minimal 8 karakter.');
+    if (!in_array($role, $MANAGEABLE_ROLES, true))
+        back('karyawan.php', 'error', 'Role tidak valid.');
+
     $s = $db->prepare('SELECT id FROM users WHERE email=?'); $s->execute([$email]);
     if ($s->fetch()) back('karyawan.php', 'error', 'Email sudah digunakan.');
-    $db->prepare("INSERT INTO users (name,email,password,role) VALUES (?,?,?,'karyawan')")
-       ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
-    back('karyawan.php', 'success', 'Karyawan berhasil ditambahkan.');
+
+    $db->prepare("INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)")
+       ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
+    back('karyawan.php', 'success', 'User berhasil ditambahkan.');
 }
 
-if ($action === 'update_karyawan') {
+if ($action === 'update_user') {
     $id       = (int)($_POST['id'] ?? 0);
     $name     = trim($_POST['name'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    if ($id <= 0 || !$name || !$email) back('karyawan.php', 'error', 'Data tidak valid.');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) back('karyawan.php', 'error', 'Format email tidak valid.');
-    $s = $db->prepare("SELECT id FROM users WHERE id=? AND role='karyawan'"); $s->execute([$id]);
-    if (!$s->fetch()) back('karyawan.php', 'error', 'Karyawan tidak ditemukan.');
+    $role     = $_POST['role'] ?? '';
+
+    if ($id <= 0 || !$name || !$email || !$role)
+        back('karyawan.php', 'error', 'Data tidak valid.');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+        back('karyawan.php', 'error', 'Format email tidak valid.');
+    if (!in_array($role, $MANAGEABLE_ROLES, true))
+        back('karyawan.php', 'error', 'Role tidak valid.');
+    // Cegah admin hapus role dirinya sendiri
+    if ($id === (int)$user['id'] && $role !== 'admin')
+        back('karyawan.php', 'error', 'Anda tidak bisa mengubah role akun sendiri.');
+
+    $s = $db->prepare("SELECT id FROM users WHERE id=?"); $s->execute([$id]);
+    if (!$s->fetch()) back('karyawan.php', 'error', 'User tidak ditemukan.');
+
     $s = $db->prepare('SELECT id FROM users WHERE email=? AND id!=?'); $s->execute([$email, $id]);
     if ($s->fetch()) back("karyawan.php?edit=$id", 'error', 'Email sudah digunakan.');
+
     if ($password !== '') {
-        if (strlen($password) < 8) back("karyawan.php?edit=$id", 'error', 'Password minimal 8 karakter.'); // SEC-07
-        $db->prepare('UPDATE users SET name=?,email=?,password=? WHERE id=? AND role="karyawan"')
-           ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $id]);
+        if (strlen($password) < 8)
+            back("karyawan.php?edit=$id", 'error', 'Password minimal 8 karakter.');
+        $db->prepare('UPDATE users SET name=?,email=?,password=?,role=? WHERE id=?')
+           ->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $role, $id]);
     } else {
-        $db->prepare('UPDATE users SET name=?,email=? WHERE id=? AND role="karyawan"')
-           ->execute([$name, $email, $id]);
+        $db->prepare('UPDATE users SET name=?,email=?,role=? WHERE id=?')
+           ->execute([$name, $email, $role, $id]);
     }
-    back('karyawan.php', 'success', 'Data karyawan berhasil diperbarui.');
+    back('karyawan.php', 'success', 'Data user berhasil diperbarui.');
 }
 
-if ($action === 'delete_karyawan') {
+if ($action === 'delete_user') {
     $id = (int)($_POST['id'] ?? 0);
     if ($id <= 0) back('karyawan.php', 'error', 'Data tidak valid.');
-    $s = $db->prepare("SELECT id FROM users WHERE id=? AND role='karyawan'"); $s->execute([$id]);
-    if (!$s->fetch()) back('karyawan.php', 'error', 'Karyawan tidak ditemukan.');
-    $s = $db->prepare('SELECT COUNT(*) FROM logbooks WHERE user_id=?'); $s->execute([$id]);
-    if ((int)$s->fetchColumn() > 0) back('karyawan.php', 'error', 'Karyawan tidak bisa dihapus karena memiliki data logbook.');
-    $db->prepare("DELETE FROM users WHERE id=? AND role='karyawan'")->execute([$id]);
-    back('karyawan.php', 'success', 'Karyawan berhasil dihapus.');
+    // Cegah admin hapus dirinya sendiri
+    if ($id === (int)$user['id'])
+        back('karyawan.php', 'error', 'Anda tidak bisa menghapus akun sendiri.');
+
+    $s = $db->prepare("SELECT id, role FROM users WHERE id=?"); $s->execute([$id]);
+    $target = $s->fetch();
+    if (!$target) back('karyawan.php', 'error', 'User tidak ditemukan.');
+
+    // Cegah hapus jika punya logbook (untuk karyawan & pic)
+    if (in_array($target['role'], ['karyawan', 'pic'])) {
+        $col = $target['role'] === 'karyawan' ? 'user_id' : 'pic_id';
+        $s = $db->prepare("SELECT COUNT(*) FROM logbooks WHERE $col=?"); $s->execute([$id]);
+        if ((int)$s->fetchColumn() > 0)
+            back('karyawan.php', 'error', 'User tidak bisa dihapus karena memiliki data logbook.');
+    }
+
+    $db->prepare("DELETE FROM users WHERE id=?")->execute([$id]);
+    back('karyawan.php', 'success', 'User berhasil dihapus.');
 }
 
-// ── Logbook CRUD ─────────────────────────────────────────────────
+// Backward compat aliases (tetap support action lama)
+if ($action === 'create_karyawan') { $_POST['action'] = 'create_user'; $_POST['role'] = 'karyawan'; require __FILE__; exit; }
+if ($action === 'update_karyawan') { $_POST['action'] = 'update_user'; $_POST['role'] = 'karyawan'; require __FILE__; exit; }
+if ($action === 'delete_karyawan') { $_POST['action'] = 'delete_user'; require __FILE__; exit; }
+
+// ── Logbook CRUD ──────────────────────────────────────────────────
 if ($action === 'create_logbook') {
     $user_id     = (int)($_POST['user_id'] ?? 0);
     $pic_id      = (int)($_POST['pic_id'] ?? 0);
@@ -78,7 +120,7 @@ if ($action === 'create_logbook') {
         back('logbook.php', 'error', 'Jam harus antara 0–99.99.');
     if (!in_array($status, ['pending', 'approved', 'declined']))
         back('logbook.php', 'error', 'Status tidak valid.');
-    if ($status === 'declined' && $catatan_pic === '') // BUG-07
+    if ($status === 'declined' && $catatan_pic === '')
         back('logbook.php', 'error', 'Catatan PIC wajib diisi jika status Declined.');
 
     $s = $db->prepare("SELECT id FROM users WHERE id=? AND role='karyawan'"); $s->execute([$user_id]);
@@ -107,7 +149,7 @@ if ($action === 'update_logbook') {
         back("logbook.php?edit=$id", 'error', 'Jam harus antara 0–99.99.');
     if (!in_array($status, ['pending', 'approved', 'declined']))
         back("logbook.php?edit=$id", 'error', 'Status tidak valid.');
-    if ($status === 'declined' && $catatan_pic === '') // BUG-07
+    if ($status === 'declined' && $catatan_pic === '')
         back("logbook.php?edit=$id", 'error', 'Catatan PIC wajib diisi jika status Declined.');
 
     $s = $db->prepare("SELECT id FROM users WHERE id=? AND role='karyawan'"); $s->execute([$user_id]);

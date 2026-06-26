@@ -24,8 +24,8 @@ html_head('Profil'); nav($user,'Profil Saya'); flash();
     <input type="hidden" name="action" value="password">
     <?= csrf_field() ?>
     <div class="field"><label>Sandi Saat Ini</label><input type="password" name="old" required></div>
-    <div class="field"><label>Sandi Baru</label><input type="password" name="new" required minlength="6"></div>
-    <div class="field"><label>Konfirmasi Sandi Baru</label><input type="password" name="confirm" required minlength="6"></div>
+    <div class="field"><label>Sandi Baru</label><input type="password" name="new" required minlength="8"></div>
+    <div class="field"><label>Konfirmasi Sandi Baru</label><input type="password" name="confirm" required minlength="8"></div>
     <button class="btn btn-primary" type="submit">Ganti Sandi</button>
   </form>
 </div>

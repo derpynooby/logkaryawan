@@ -1,11 +1,10 @@
 <?php
 /**
  * error.php — Halaman error terpusat
- * Dipanggil oleh: Nginx error_page, csrf_verify(), atau langsung via ?code=
+ * FIX: HTTP_REFERER dihapus (open redirect risk) — gunakan javascript:history.back()
  */
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-// Nginx mengirim status asli via REDIRECT_STATUS
 $code = (int)(
     $_GET['code']
     ?? $_SERVER['REDIRECT_STATUS']
@@ -13,7 +12,6 @@ $code = (int)(
     ?: 500
 );
 
-// Pastikan kode valid
 if (!in_array($code, [400,401,403,404,405,419,500,502,503,504])) $code = 404;
 
 http_response_code($code);
@@ -33,13 +31,9 @@ $defaults = [
 
 [$icon, $title, $desc] = $defaults[$code] ?? ['⚠️', 'Terjadi Kesalahan', 'Silakan kembali dan coba lagi.'];
 
-// Pesan custom dari csrf_verify() atau lainnya
 if (!empty($_GET['msg'])) $desc = htmlspecialchars($_GET['msg']);
 
-// Tombol kembali
-$back = !empty($_SERVER['HTTP_REFERER']) ? htmlspecialchars($_SERVER['HTTP_REFERER']) : null;
-
-// Tombol home sesuai role
+// FIX SEC-06: Tidak lagi menggunakan HTTP_REFERER — cukup history.back()
 $home = '../index.php';
 if (!empty($_SESSION['user'])) {
     $home = match($_SESSION['user']['role']) {
@@ -74,7 +68,6 @@ body::after{content:'';position:fixed;width:350px;height:350px;border-radius:50%
 .blob{position:fixed;width:200px;height:200px;border-radius:50%;
   background:radial-gradient(circle,rgba(255,255,255,.12) 0%,transparent 65%);
   top:50%;left:-60px;pointer-events:none}
-
 .card{
   background:#fff;border-radius:1.25rem;border:1px solid rgba(240,223,200,.6);
   padding:2.5rem 2rem;width:100%;max-width:460px;
@@ -89,7 +82,6 @@ body::after{content:'';position:fixed;width:350px;height:350px;border-radius:50%
   color:#f29221;margin-bottom:.4rem}
 h1{font-size:1.35rem;font-weight:800;color:#1c1309;margin-bottom:.6rem}
 p{font-size:.9rem;color:#7a6248;line-height:1.7;margin-bottom:1.75rem}
-
 .actions{display:flex;gap:.65rem;justify-content:center;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.25rem;
   border-radius:.55rem;border:none;cursor:pointer;font-size:.875rem;font-weight:700;
@@ -98,7 +90,6 @@ p{font-size:.9rem;color:#7a6248;line-height:1.7;margin-bottom:1.75rem}
 .btn-primary:hover{opacity:.85;color:#fff}
 .btn-ghost{background:#f5ece0;color:#1c1309}
 .btn-ghost:hover{background:#ecd9c4;color:#1c1309}
-
 .tip{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid #f0dfc8;
   font-size:.78rem;color:#a0917e;line-height:1.8}
 </style>
@@ -112,12 +103,8 @@ p{font-size:.9rem;color:#7a6248;line-height:1.7;margin-bottom:1.75rem}
   <h1><?= htmlspecialchars($title) ?></h1>
   <p><?= $desc ?></p>
   <div class="actions">
-    <?php if ($back): ?>
-      <a href="<?= $back ?>" class="btn btn-primary">← Kembali</a>
-    <?php else: ?>
-      <a href="javascript:history.back()" class="btn btn-primary">← Kembali</a>
-    <?php endif ?>
-    <a href="<?= $home ?>" class="btn btn-ghost">🏠 Dashboard</a>
+    <a href="javascript:history.back()" class="btn btn-primary">← Kembali</a>
+    <a href="<?= htmlspecialchars($home) ?>" class="btn btn-ghost">🏠 Dashboard</a>
   </div>
   <?php if ($code === 419): ?>
   <div class="tip">Token sesi habis karena halaman dibuka terlalu lama atau tab browser ditutup lalu dibuka kembali. Klik <strong>Kembali</strong> untuk me-refresh token secara otomatis.</div>

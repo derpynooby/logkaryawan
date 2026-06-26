@@ -84,7 +84,8 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 .sb-urole{font-size:.67rem;color:rgba(255,255,255,.52);text-transform:capitalize}
 .sb-logout{display:block;text-align:center;padding:.4rem;
   background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);
-  border-radius:.4rem;font-size:.8rem;text-decoration:none;transition:background .15s}
+  border-radius:.4rem;font-size:.8rem;text-decoration:none;transition:background .15s;
+  border:none;width:100%;cursor:pointer;font-family:inherit}
 .sb-logout:hover{background:rgba(255,255,255,.22);color:#fff;text-decoration:none}
 
 /* ── MAIN ── */
@@ -257,12 +258,7 @@ function nav(array $user, string $page_title): void {
 <aside class="sidebar" id="sidebar">
   <div class="sb-blob"></div><div class="sb-blob2"></div><div class="sb-blob3"></div>
   <div class="sb-brand">
-    <div class="logo">
-      <img src="<?= $base ?>/assets/logo.webp" alt="Logo" style="width:3em;height:3em;vertical-align:middle;display:inline-block;border-radius:.32em;background:#fff4e6;margin-right:.1em;">
-      <span style="font-size:1.25em;font-weight:800;line-height:1.05;display:inline-block;">
-        Log<br>Karyawan
-      </span>
-    </div>
+    <div class="logo">📋 Log Karyawan</div>
     <div class="tagline">Manajemen Aktivitas Harian</div>
   </div>
   <div class="sb-section">Menu Utama</div>
@@ -281,7 +277,10 @@ function nav(array $user, string $page_title): void {
         <div class="sb-urole"><?= $role_label ?></div>
       </div>
     </div>
-    <a class="sb-logout" href="<?= $base ?>/logout.php">⎋ Keluar</a>
+    <form method="post" action="<?= $base ?>/logout.php" style="margin:0">
+      <input type="hidden" name="_csrf" value="<?= htmlspecialchars(csrf_token()) ?>">
+      <button type="submit" class="sb-logout">⎋ Keluar</button>
+    </form>
   </div>
 </aside>
 <div class="main">
