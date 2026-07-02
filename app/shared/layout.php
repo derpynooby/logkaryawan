@@ -7,7 +7,6 @@ function html_head(string $title): void { ?>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?= htmlspecialchars($title) ?> — Log Karyawan</title>
 <style>
-/* color tokens — #f29221 primary,rgb(179, 75, 0) secondary */
 :root{
   --or1:#d97a0f; --or2:#f29221; --or3:rgb(179, 75, 0); --or4:#f8c98e; --or5:#fff4e6;
   --primary:#f29221; --primary-dark:#d97a0f;
@@ -18,7 +17,6 @@ function html_head(string $title): void { ?>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
 
-/* ── SIDEBAR ── */
 .sidebar{
   width:var(--sidebar-w);min-height:100vh;flex-shrink:0;
   background:linear-gradient(180deg,var(--or1) 0%,var(--or2) 55%,var(--or3) 100%);
@@ -60,15 +58,57 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 }
 
 .sb-brand{padding:1.75rem 1.25rem 1rem;position:relative;z-index:1}
-.sb-brand .logo{font-size:1.1rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:.5rem}
-.sb-brand .tagline{font-size:.68rem;color:rgba(255,255,255,.6);margin-top:.2rem}
+.sb-brand .brand-block {
+  display: block;
+}
+.sb-brand .logo {
+  font-size:1.1rem;
+  font-weight:800;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  gap:.7rem;
+}
+.logo-image {
+  background: #fff4e6;
+  border-radius: 30px;
+  padding: .12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #f0dfc8;
+  width: 3.5rem;
+  height: 3.5rem;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,.02);
+  object-fit: contain;
+}
+.sb-brand .brand-block .logkaryawan {
+  font-size:1.1rem;
+  font-weight:800;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  gap:.7rem;
+}
+.sb-brand .brand-block{
+  font-size:.68rem;
+  color:rgba(255,255,255,1);
+  margin-top:.2rem;
+  display:block;
+}
+@media (max-width:600px){
+  .sb-brand .brand-block .tagline{
+    margin-left:0;
+  }
+}
+.tagline{font-size:.67rem;color:rgba(255,255,255,1);font-weight: 400;}
 .sb-section{font-size:.62rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
-  color:rgba(255,255,255,.45);padding:.9rem 1.25rem .3rem;position:relative;z-index:1}
+  color:rgba(255,255,255,1);padding:.9rem 1.25rem .3rem;position:relative;z-index:1}
 .sidebar nav{flex:1;padding:.2rem 0;position:relative;z-index:1}
 .sidebar nav a{
   display:flex;align-items:center;gap:.6rem;
   padding:.6rem 1.25rem;font-size:.875rem;font-weight:500;
-  color:rgba(255,255,255,.82);text-decoration:none;
+  color:rgba(255,255,255,1);text-decoration:none;
   margin:.1rem .5rem;border-radius:.5rem;
   transition:background .15s,color .15s;
 }
@@ -81,7 +121,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
   display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;flex-shrink:0;
   border:2px solid rgba(255,255,255,.35);}
 .sb-uname{font-weight:600;color:#fff;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-urole{font-size:.67rem;color:rgba(255,255,255,.52);text-transform:capitalize}
+.sb-urole{font-size:.67rem;color:rgba(255,255,255,.75);text-transform:capitalize}
 .sb-logout{display:block;text-align:center;padding:.4rem;
   background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);
   border-radius:.4rem;font-size:.8rem;text-decoration:none;transition:background .15s;
@@ -258,8 +298,15 @@ function nav(array $user, string $page_title): void {
 <aside class="sidebar" id="sidebar">
   <div class="sb-blob"></div><div class="sb-blob2"></div><div class="sb-blob3"></div>
   <div class="sb-brand">
-    <div class="logo">📋 Log Karyawan</div>
-    <div class="tagline">Manajemen Aktivitas Harian</div>
+    <div class="brand-block">
+      <span class="logkaryawan">
+        <img src="<?= htmlspecialchars($base) ?>/assets/logo.webp" alt="Logo" class="logo-image" loading="lazy" />
+        <div class="">
+            Log Karyawan
+            <span class="tagline">Manajemen Aktivitas Harian</span>
+        </div>
+      </span>
+    </div>
   </div>
   <div class="sb-section">Menu Utama</div>
   <nav>

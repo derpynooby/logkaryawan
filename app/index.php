@@ -78,6 +78,8 @@ body{font-family:system-ui,sans-serif;min-height:100vh;display:flex;background:#
   background:#f29221;
   position:relative;overflow:hidden;
   display:flex;flex-direction:column;justify-content:center;padding:3rem 2.5rem;
+  /* Make sure height is 100vh to help center items */
+  height:100vh;
 }
 .panel-l::before{content:'';position:absolute;width:360px;height:360px;border-radius:50%;
   background:#fffbe9;
@@ -99,10 +101,75 @@ body{font-family:system-ui,sans-serif;min-height:100vh;display:flex;background:#
   background:#ffd699;
   opacity:0.41;
   top:70%;left:40px;}
-.panel-l .ct{position:relative;z-index:1}
+.panel-l .ct{
+  position:relative;
+  z-index:1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.logo-container {
+  background: #fffbe9;
+  border-radius: 100%;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 34px; /* will be overridden below for balance */
+  margin-top: 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+}
+.logo-img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 50%;
+  display: block;
+  background: #fffbe9;
+}
 .brand{font-size:1.9rem;font-weight:800;color:#fff;margin-bottom:.3rem}
-.brand-sub{font-size:.88rem;color:rgba(255,255,255,.65);margin-bottom:2.5rem}
-.tagline{color:rgba(255,255,255,.85);font-size:.95rem;line-height:1.65}
+.brand-sub{font-size:.88rem;color:rgba(255,255,255,.65);margin-bottom:2.5rem;text-align:center}
+.tagline{color:rgba(255,255,255,.85);font-size:.95rem;line-height:1.65;text-align:center}
+
+/* Logo distance hacks: equal space above and below logo to text */
+@media (min-width: 0) {
+  .panel-l .ct {
+    /* Calculate vertical space: */
+    /* Total = logo + space above + space below (to .brand) */
+  }
+  .logo-container {
+    /* margin-top: auto already handled by flex start default, so we use flexbox for vertical positioning */
+    /* We'll use a margin below for spacing to .brand, and padding above with a spacer for above. */
+    margin-bottom: 34px;
+  }
+  .logo-spacer {
+    height: 34px;
+    width: 1px;
+    display: block;
+  }
+}
+
+/* Responsive tweaks */
+@media(max-width:900px){
+  body{flex-direction:column}
+  .panel-l{width:100%;min-height:auto;padding:2rem 1.5rem;height:auto;}
+  .brand{font-size:1.5rem}
+  .brand-sub{margin-bottom:1.25rem}
+  .tagline{font-size:.88rem}
+  .panel-r{padding:1.5rem 1rem;align-items:flex-start}
+  .logo-img { width:70px; height:70px;}
+  .logo-container { padding:16px; margin-bottom:22px;}
+  .logo-spacer { height:22px;}
+}
+@media(max-width:480px){
+  .panel-l{padding:1.5rem 1.25rem}
+  .brand{font-size:1.3rem}
+  .box h1{font-size:1.25rem}
+  .hint{font-size:.72rem}
+  .logo-img { width:90px; height:90px;}
+  .logo-container { padding:10px; margin-bottom:16px;}
+  .logo-spacer { height:16px;}
+}
 .panel-r{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .box{width:100%;max-width:360px}
 h1{font-size:1.45rem;font-weight:800;color:#1c1309;margin-bottom:.3rem}
@@ -125,27 +192,17 @@ input:disabled{opacity:.5;cursor:not-allowed}
 .hint{font-size:.77rem;color:#a0917e;margin-top:1.5rem;
   padding-top:1.25rem;border-top:1px solid #f0dfc8;line-height:1.8}
 .hint code{background:#fff4e6;padding:.1rem .3rem;border-radius:.25rem;font-size:.73rem}
-@media(max-width:900px){
-  body{flex-direction:column}
-  .panel-l{width:100%;min-height:auto;padding:2rem 1.5rem}
-  .brand{font-size:1.5rem}
-  .brand-sub{margin-bottom:1.25rem}
-  .tagline{font-size:.88rem}
-  .panel-r{padding:1.5rem 1rem;align-items:flex-start}
-}
-@media(max-width:480px){
-  .panel-l{padding:1.5rem 1.25rem}
-  .brand{font-size:1.3rem}
-  .box h1{font-size:1.25rem}
-  .hint{font-size:.72rem}
-}
 </style>
 </head>
 <body>
 <div class="panel-l">
   <div class="blob"></div><div class="blob2"></div><div class="blob3"></div>
   <div class="ct">
-    <div class="brand">📋 Log Karyawan</div>
+    <div class="logo-spacer"></div>
+    <div class="logo-container">
+      <img src="assets/logo.webp" alt="Logo" class="logo-img" loading="lazy" />
+    </div>
+    <div class="brand">Log Karyawan</div>
     <div class="brand-sub">Sistem Manajemen Aktivitas Harian</div>
     <div class="tagline">Pantau produktivitas, validasi logbook, dan kelola tim Anda secara terstruktur.</div>
   </div>
